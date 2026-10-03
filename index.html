@@ -1,416 +1,255 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استبيان اختيار أفضل فكرة للتيم</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
-        body {
-            font-family: 'Tajawal', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            min-height: 100vh;
-        }
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .disabled-card {
-            opacity: 0.4;
-            cursor: not-allowed;
-            filter: grayscale(80%);
-            position: relative;
-        }
-        .disabled-card::after {
-            content: '🚫 لا يمكنك التصويت لنفسك';
-            position: absolute;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ef4444;
-            font-weight: bold;
-            font-size: 0.9rem;
-            border-radius: 1rem;
-            padding: 0.5rem;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>استبيان تقييم مشاريع التيم</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
 </head>
-<body class="text-slate-100 flex flex-col justify-between p-4 md:p-8">
+<body class="min-h-screen py-10 px-4 flex flex-col items-center justify-between">
 
-    <!-- Header -->
-    <header class="max-w-4xl mx-auto w-full text-center my-6">
-        <div class="inline-flex items-center gap-3 bg-indigo-500/10 border border-indigo-500/30 px-4 py-2 rounded-full mb-3 text-indigo-400 font-semibold text-sm">
-            <i class="fa-solid fa-users-viewfinder"></i> تصويت الفريق - اختيار أفضل فكرة
-        </div>
-        <h1 class="text-3xl md:text-5xl font-extrabold text-white tracking-tight">استبيان تقييم مشاريع التيم</h1>
-        <p class="text-slate-400 mt-2 text-sm md:text-base">اختر هوتيك أولاً، ثم صوّت لأفضل فكرة تراها مناسبة (يُمنع التصويت لنفسك)</p>
-    </header>
-
-    <!-- Main Container -->
-    <main class="max-w-4xl mx-auto w-full flex-grow">
-
-        <!-- Banner for already voted users -->
-        <div id="alreadyVotedBanner" class="hidden glass-card border-amber-500/30 bg-amber-500/10 p-6 rounded-2xl mb-8 text-center">
-            <div class="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-3">
-                <i class="fa-solid fa-circle-check"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-amber-300">لقد قمت بالتصويت بالفعل من هذا الجهاز!</h2>
-            <p id="votedDetailsText" class="text-slate-300 mt-1">تم تسجيل صوتك بنجاح. يمكن مشاهدة النتائج المباشرة أدناه فقط.</p>
-        </div>
-
-        <!-- Step 1: Select Voter Identity -->
-        <section id="step1" class="glass-card p-6 md:p-8 rounded-3xl mb-8 shadow-2xl">
-            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-700/60">
-                <span class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">1</span>
-                <h2 class="text-xl font-bold text-white">من أنت؟ (حدد اسمك للبدء)</h2>
-            </div>
-            <div id="votersGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <!-- User buttons injected by JS -->
-            </div>
-        </section>
-
-        <!-- Step 2: Select Best Idea -->
-        <section id="step2" class="glass-card p-6 md:p-8 rounded-3xl mb-8 shadow-2xl hidden">
-            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/60">
-                <div class="flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">2</span>
-                    <h2 class="text-xl font-bold text-white">اختر أفضل فكرة بالنسبة لك</h2>
-                </div>
-                <button onclick="resetSelection()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
-                    <i class="fa-solid fa-arrow-right"></i> تغيير اسمي
-                </button>
-            </div>
-
-            <p class="text-sm text-slate-300 mb-6 bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-                مرحباً <span id="currentVoterName" class="font-bold text-indigo-400"></span>! اضغط على "عرض التفاصيل" للتعرف على فكرة كل عضو، ثم حدد اختياراتك واضغط "تأكيد التصويت".
-            </p>
-
-            <div id="ideasGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                <!-- Idea cards injected by JS -->
-            </div>
-
-            <!-- Submit Button -->
-            <div class="text-center pt-4 border-t border-slate-700/60">
-                <button id="submitVoteBtn" onclick="submitVote()" disabled class="w-full sm:w-auto px-10 py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-2xl shadow-lg transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center gap-2 mx-auto">
-                    <i class="fa-solid fa-paper-plane"></i> تأكيد التصويت النهائي
-                </button>
-            </div>
-        </section>
-
-        <!-- Results Dashboard -->
-        <section id="resultsSection" class="glass-card p-6 md:p-8 rounded-3xl shadow-2xl">
-            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/60">
-                <div class="flex items-center gap-3">
-                    <i class="fa-solid fa-chart-column text-indigo-400 text-2xl"></i>
-                    <h2 class="text-xl font-bold text-white">نتائج التصويت المباشرة</h2>
-                </div>
-                <span id="voteCountBadge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-3 py-1 rounded-full font-bold">
-                    0 / 8 أصوات
-                </span>
-            </div>
-
-            <!-- Chart -->
-            <div class="relative h-64 md:h-80 w-full mb-8">
-                <canvas id="resultsChart"></canvas>
-            </div>
-
-            <!-- Results Breakdown List -->
-            <div class="space-y-3" id="resultsList">
-                <!-- Progress bars injected by JS -->
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Modal for Project Details -->
-    <div id="detailsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="glass-card bg-slate-900 max-w-lg w-full p-6 rounded-3xl border border-slate-700 shadow-2xl relative">
-            <button onclick="closeModal()" class="absolute top-4 left-4 text-slate-400 hover:text-white text-xl">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-10 h-10 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-lg font-bold">
-                    <i class="fa-solid fa-lightbulb"></i>
-                </div>
-                <div>
-                    <h3 id="modalAuthor" class="text-lg font-bold text-white">اسم العضو</h3>
-                    <p class="text-xs text-indigo-400">تفاصيل فكرة المشروع</p>
-                </div>
-            </div>
-            <div id="modalContent" class="text-slate-300 text-sm leading-relaxed space-y-3 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-                <!-- Content injected by JS -->
-            </div>
-        </div>
+  <div class="w-full max-w-2xl space-y-8">
+    
+    <!-- الهيدر -->
+    <div class="text-center space-y-3">
+      <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs px-3 py-1 rounded-full font-bold">
+        ⚡ مشروع تصويت سريع - فريق عمل حاسبات
+      </span>
+      <h1 class="text-3xl md:text-4xl font-extrabold text-white">استبيان تقييم مشاريع التيم</h1>
+      <p class="text-slate-400 text-sm">اختر اسمك واختر أفضل فكرة شايفها مناسبة للبدء فيها فوراً</p>
     </div>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none z-50">
-        <i class="fa-solid fa-circle-info"></i> <span id="toastMsg">رسالة التنبيه</span>
+    <!-- بطاقة التصويت -->
+    <div id="voteCard" class="glass-card p-6 md:p-8 rounded-2xl shadow-2xl space-y-6">
+      
+      <!-- إدخال الاسم -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-2">اسمك في التيم:</label>
+        <select id="userName" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+          <option value="" disabled selected>-- اختر اسمك من القائمة --</option>
+          <option value="محمود">محمود</option>
+          <option value="كريم">كريم</option>
+          <option value="أحمد">أحمد</option>
+          <option value="سارة">سارة</option>
+          <option value="مروان">مروان</option>
+          <option value="عمر">عمر</option>
+          <option value="علي">علي</option>
+          <option value="ياسمين">ياسمين</option>
+        </select>
+      </div>
+
+      <!-- اختيار المشروع -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-2">الفكرة المناسبة للبدء فيها:</label>
+        <div class="space-y-3" id="optionsContainer">
+          
+          <label class="flex items-center gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800 hover:border-indigo-500/50 cursor-pointer transition">
+            <input type="radio" name="project" value="مشروع 1: نظام إدارة المستشفيات الذكي" class="w-4 h-4 text-indigo-600">
+            <span class="text-sm font-medium text-slate-200">مشروع 1: نظام إدارة المستشفيات الذكي</span>
+          </label>
+
+          <label class="flex items-center gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800 hover:border-indigo-500/50 cursor-pointer transition">
+            <input type="radio" name="project" value="مشروع 2: منصة تنظيم جداول المحاضرات" class="w-4 h-4 text-indigo-600">
+            <span class="text-sm font-medium text-slate-200">مشروع 2: منصة تنظيم جداول المحاضرات</span>
+          </label>
+
+          <label class="flex items-center gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800 hover:border-indigo-500/50 cursor-pointer transition">
+            <input type="radio" name="project" value="مشروع 3: تطبيق تتبع مهام التيم والتقارير" class="w-4 h-4 text-indigo-600">
+            <span class="text-sm font-medium text-slate-200">مشروع 3: تطبيق تتبع مهام التيم والتقارير</span>
+          </label>
+
+        </div>
+      </div>
+
+      <!-- زر إرسال التصويت -->
+      <button onclick="submitVote()" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2">
+        <span>تأكيد وإرسال التصويت</span>
+      </button>
     </div>
 
-    <!-- Script -->
-    <script>
-        const TEAM_MEMBERS = [
-            { id: "salma", name: "سلمى", project: "منصة إدارة المهام الذكية للتيم لتوزيع الأدوار تلقائياً." },
-            { id: "ahmed", name: "أحمد", project: "تطبيق موبايل للربط بين الطلاب والمشاريع العملية بميزات تفاعلية." },
-            { id: "ibrahim", name: "إبراهيم", project: "نظام تحليل البيانات الذكي لتتبع أداء أفراد الفريق وحساب الإنجاز." },
-            { id: "mahmoud", name: "محمود", project: "موقع ويب تفاعلي لأتمتة الاستبيانات والاقتراحات داخل الشركات والتيمات." },
-            { id: "yassagamil", name: "yassagamil", project: "أداة ذكاء اصطناعي لتلخيص المحاضرات والمستندات بأسلوب ملخص وسريع." },
-            { id: "hala", name: "هلا", project: "منصة لتنظيم الفعاليات والورش التدريبية وحجز المواعيد أونلاين." },
-            { id: "sara", name: "سارة", project: "تطبيق لتنظيم الميزانية وتتبع المصاريف للمشاريع والفرق الناشئة." },
-            { id: "george", name: "george", project: "موقع حجز الموارد وتوزيع أجهزة العمل والأدوات للفرق البرمجية." }
-        ];
+    <!-- تنبيه عند سابق التصويت -->
+    <div id="alreadyVotedAlert" class="hidden glass-card p-6 rounded-2xl text-center space-y-3 border border-amber-500/30">
+      <div class="text-amber-400 font-bold text-lg">⚠️ لقد قمت بالتصويت بالفعل من هذا الجهاز</div>
+      <p class="text-xs text-slate-400">يمكنك متابعة نتائج التصويت المباشرة في التقرير أدناه.</p>
+    </div>
 
-        const BIN_ID = "66f41b22e41b4d34e437b01a"; 
-        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+    <!-- تقرير النتائج المباشرة -->
+    <div class="glass-card p-6 md:p-8 rounded-2xl shadow-2xl space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          <span>📊</span> نتائج التصويت المباشرة
+        </h2>
+        <span id="totalVotesCount" class="text-xs bg-slate-800 text-indigo-400 px-3 py-1 rounded-full font-bold">إجمالي الأصوات: 0</span>
+      </div>
 
-        let currentVoter = null;
-        let selectedCandidate = null;
-        let votesData = {};
-        let myChart = null;
+      <!-- عرض الشريط والنسب -->
+      <div id="resultsContainer" class="space-y-4">
+        <p class="text-center text-slate-500 text-sm py-4">جاري تحميل النتائج المباشرة...</p>
+      </div>
 
-        document.addEventListener('DOMContentLoaded', () => {
-            initApp();
+      <!-- جدول تفاصيل أصحاب الأصوات -->
+      <div class="mt-6 pt-4 border-t border-slate-800/80">
+        <h3 class="text-sm font-bold text-slate-300 mb-3">تفاصيل تصويت الأعضاء:</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs text-slate-300">
+            <thead class="bg-slate-900/80 text-slate-400">
+              <tr>
+                <th class="p-2.5 rounded-r-lg">الاسم</th>
+                <th class="p-2.5 rounded-l-lg">المشروع المختار</th>
+              </tr>
+            </thead>
+            <tbody id="votesTableBody" class="divide-y divide-slate-800/50">
+              <tr>
+                <td colspan="2" class="p-3 text-center text-slate-500">لا توجد أصوات مسجلة حتى الآن</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- زر إعادة الضبط للتجربة -->
+  <div class="mt-10 text-center">
+    <button onclick="resetMyVote()" class="text-xs text-slate-500 hover:text-indigo-400 underline transition">
+      🔄 إعادة تجربة التصويت (تصفير الذاكرة المحلية للجهاز)
+    </button>
+  </div>
+
+  <script>
+    // إعداد سيرفر مجاني عام
+    const firebaseConfig = {
+      databaseURL: "https://ides-team-survey-default-rtdb.firebaseio.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const projectsList = [
+      "مشروع 1: نظام إدارة المستشفيات الذكي",
+      "مشروع 2: منصة تنظيم جداول المحاضرات",
+      "مشروع 3: تطبيق تتبع مهام التيم والتقارير"
+    ];
+
+    // التحقق هل صوّت قبل كده
+    if (localStorage.getItem('hasVoted_ides')) {
+      document.getElementById('voteCard').classList.add('hidden');
+      document.getElementById('alreadyVotedAlert').classList.remove('hidden');
+    }
+
+    // إرسال التصويت
+    function submitVote() {
+      const name = document.getElementById('userName').value;
+      const selectedProject = document.querySelector('input[name="project"]:checked');
+
+      if (!name) {
+        alert('يرجى اختيار اسمك أولاً!');
+        return;
+      }
+      if (!selectedProject) {
+        alert('يرجى اختيار المشروع المفضل لديك!');
+        return;
+      }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerText = 'جاري الإرسال...';
+
+      const voteData = {
+        name: name,
+        project: selectedProject.value,
+        timestamp: Date.now()
+      };
+
+      database.ref('votes/' + name).set(voteData, (error) => {
+        if (error) {
+          alert('حدث خطأ في الاتصال، حاول مجدداً!');
+          btn.disabled = false;
+          btn.innerText = 'تأكيد وإرسال التصويت';
+        } else {
+          localStorage.setItem('hasVoted_ides', 'true');
+          document.getElementById('voteCard').classList.add('hidden');
+          document.getElementById('alreadyVotedAlert').classList.remove('hidden');
+        }
+      });
+    }
+
+    // إعادة التصفير للاختبار
+    function resetMyVote() {
+      localStorage.removeItem('hasVoted_ides');
+      document.getElementById('voteCard').classList.remove('hidden');
+      document.getElementById('alreadyVotedAlert').classList.add('hidden');
+      alert('تم إعادة التفعيل! يمكنك الآن التصويت من جديد كأنك شخص آخر.');
+    }
+
+    // الاستماع للنتائج المباشرة وترتيبها
+    database.ref('votes').on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      const votesArray = Object.values(data);
+      const totalVotes = votesArray.length;
+
+      document.getElementById('totalVotesCount').innerText = `إجمالي الأصوات: ${totalVotes}`;
+
+      // حساب الأصوات لكل مشروع
+      const counts = {};
+      projectsList.forEach(p => counts[p] = 0);
+      votesArray.forEach(v => {
+        if (counts[v.project] !== undefined) counts[v.project]++;
+      });
+
+      // رسم البياني والنسب
+      const resultsContainer = document.getElementById('resultsContainer');
+      resultsContainer.innerHTML = '';
+
+      projectsList.forEach(proj => {
+        const count = counts[proj];
+        const percent = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+
+        resultsContainer.innerHTML += `
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs font-semibold">
+              <span class="text-slate-300">${proj}</span>
+              <span class="text-indigo-400">${count} أصوات (${percent}%)</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-800">
+              <div class="bg-indigo-500 h-full transition-all duration-500 rounded-full" style="width: ${percent}%"></div>
+            </div>
+          </div>
+        `;
+      });
+
+      // جدول أسماء المصوتين
+      const tableBody = document.getElementById('votesTableBody');
+      if (totalVotes === 0) {
+        tableBody.innerHTML = `<tr><td colspan="2" class="p-3 text-center text-slate-500">لا توجد أصوات مسجلة حتى الآن</td></tr>`;
+      } else {
+        tableBody.innerHTML = '';
+        votesArray.forEach(vote => {
+          tableBody.innerHTML += `
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="p-2.5 font-bold text-indigo-300">${vote.name}</td>
+              <td class="p-2.5 text-slate-300">${vote.project}</td>
+            </tr>
+          `;
         });
-
-        async function initApp() {
-            renderVotersGrid();
-            await fetchVotes();
-            checkDeviceLock();
-            setInterval(fetchVotes, 5000); 
-        }
-
-        function renderVotersGrid() {
-            const grid = document.getElementById('votersGrid');
-            grid.innerHTML = TEAM_MEMBERS.map(m => `
-                <button onclick="selectVoter('${m.id}')" class="voter-btn bg-slate-800/80 hover:bg-indigo-600/30 border border-slate-700/80 hover:border-indigo-500/50 p-4 rounded-2xl flex flex-col items-center gap-2 transition duration-200">
-                    <div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 font-bold text-base">
-                        ${m.name.charAt(0)}
-                    </div>
-                    <span class="text-sm font-bold text-white">${m.name}</span>
-                </button>
-            `).join('');
-        }
-
-        function checkDeviceLock() {
-            const savedVoterId = localStorage.getItem('team_voted_member_id');
-            const savedCandidateId = localStorage.getItem('team_voted_candidate_id');
-
-            if (savedVoterId) {
-                document.getElementById('step1').classList.add('hidden');
-                document.getElementById('step2').classList.add('hidden');
-                
-                const voter = TEAM_MEMBERS.find(m => m.id === savedVoterId);
-                const candidate = TEAM_MEMBERS.find(m => m.id === savedCandidateId);
-
-                document.getElementById('alreadyVotedBanner').classList.remove('hidden');
-                if (voter && candidate) {
-                    document.getElementById('votedDetailsText').innerText = `أهلاً ${voter.name}، لقد قمت بالتصويت لصالح (${candidate.name}). النتائج المباشرة للجميع معروضة أدناه.`;
-                }
-            }
-        }
-
-        function selectVoter(voterId) {
-            if (localStorage.getItem('team_voted_member_id')) {
-                showToast("لقد قمت بالتصويت بالفعل من هذا الجهاز!");
-                return;
-            }
-
-            if (votesData[voterId]) {
-                showToast("عفواً! هذا الاسم تم التصويت به سابقاً من جهاز آخر!");
-                return;
-            }
-
-            currentVoter = TEAM_MEMBERS.find(m => m.id === voterId);
-            document.getElementById('currentVoterName').innerText = currentVoter.name;
-            document.getElementById('step1').classList.add('hidden');
-            document.getElementById('step2').classList.remove('hidden');
-            renderIdeasGrid();
-        }
-
-        function resetSelection() {
-            currentVoter = null;
-            selectedCandidate = null;
-            document.getElementById('submitVoteBtn').disabled = true;
-            document.getElementById('step2').classList.add('hidden');
-            document.getElementById('step1').classList.remove('hidden');
-        }
-
-        function renderIdeasGrid() {
-            const grid = document.getElementById('ideasGrid');
-            grid.innerHTML = TEAM_MEMBERS.map(m => {
-                const isSelf = currentVoter && m.id === currentVoter.id;
-                const isSelected = selectedCandidate && selectedCandidate.id === m.id;
-
-                return `
-                    <div class="relative bg-slate-800/60 border ${isSelected ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-700/80'} p-5 rounded-2xl flex flex-col justify-between transition-all ${isSelf ? 'disabled-card' : ''}">
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="font-bold text-white text-base">${m.name}</span>
-                                <button onclick="openModal('${m.id}')" class="text-xs text-indigo-400 hover:text-indigo-300 underline flex items-center gap-1">
-                                    <i class="fa-solid fa-circle-info"></i> التفاصيل
-                                </button>
-                            </div>
-                            <p class="text-xs text-slate-300 line-clamp-2 mb-4">${m.project}</p>
-                        </div>
-                        <button ${isSelf ? 'disabled' : ''} onclick="chooseCandidate('${m.id}')" 
-                                class="w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}">
-                            ${isSelected ? '<i class="fa-solid fa-check-circle"></i> مُحدد كأفضل فكرة' : 'اختيار هذه الفكرة'}
-                        </button>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function chooseCandidate(candidateId) {
-            if (currentVoter && candidateId === currentVoter.id) return;
-            selectedCandidate = TEAM_MEMBERS.find(m => m.id === candidateId);
-            renderIdeasGrid();
-            document.getElementById('submitVoteBtn').disabled = false;
-        }
-
-        async function submitVote() {
-            if (!currentVoter || !selectedCandidate) return;
-
-            const btn = document.getElementById('submitVoteBtn');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري تسجيل التصويت...`;
-
-            votesData[currentVoter.id] = selectedCandidate.id;
-
-            try {
-                await fetch(API_URL, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ votes: votesData })
-                });
-
-                localStorage.setItem('team_voted_member_id', currentVoter.id);
-                localStorage.setItem('team_voted_candidate_id', selectedCandidate.id);
-
-                showToast("تم تسجيل صوتك بنجاح!");
-                checkDeviceLock();
-                updateResultsUI();
-
-            } catch (err) {
-                showToast("حدث خطأ أثناء الاتصال، يرجى المحاولة مرة أخرى.");
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> تأكيد التصويت النهائي`;
-            }
-        }
-
-        async function fetchVotes() {
-            try {
-                const res = await fetch(API_URL);
-                const data = await res.json();
-                if (data && data.record && data.record.votes) {
-                    votesData = data.record.votes;
-                } else {
-                    votesData = {};
-                }
-                updateResultsUI();
-            } catch (err) {
-                console.error("Fetch votes error", err);
-            }
-        }
-
-        function updateResultsUI() {
-            const counts = {};
-            TEAM_MEMBERS.forEach(m => counts[m.id] = 0);
-            
-            let totalVotes = 0;
-            Object.values(votesData).forEach(candidateId => {
-                if (counts[candidateId] !== undefined) {
-                    counts[candidateId]++;
-                    totalVotes++;
-                }
-            });
-
-            document.getElementById('voteCountBadge').innerText = `${totalVotes} / ${TEAM_MEMBERS.length} أصوات`;
-
-            // Update Chart
-            const labels = TEAM_MEMBERS.map(m => m.name);
-            const dataValues = TEAM_MEMBERS.map(m => counts[m.id]);
-
-            if (!myChart) {
-                const ctx = document.getElementById('resultsChart').getContext('2d');
-                myChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'عدد الأصوات',
-                            data: dataValues,
-                            backgroundColor: 'rgba(99, 102, 241, 0.6)',
-                            borderColor: 'rgba(99, 102, 241, 1)',
-                            borderWidth: 2,
-                            borderRadius: 8
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                            x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
-                        }
-                    }
-                });
-            } else {
-                myChart.data.datasets[0].data = dataValues;
-                myChart.update();
-            }
-
-            // Update List
-            const sorted = [...TEAM_MEMBERS].sort((a, b) => counts[b.id] - counts[a.id]);
-            document.getElementById('resultsList').innerHTML = sorted.map(m => {
-                const voteNum = counts[m.id];
-                const pct = totalVotes > 0 ? Math.round((voteNum / totalVotes) * 100) : 0;
-                return `
-                    <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 flex flex-col gap-1">
-                        <div class="flex justify-between text-xs font-bold">
-                            <span class="text-white">${m.name}</span>
-                            <span class="text-indigo-400">${voteNum} أصوات (${pct}%)</span>
-                        </div>
-                        <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
-                            <div class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function openModal(memberId) {
-            const member = TEAM_MEMBERS.find(m => m.id === memberId);
-            if (!member) return;
-            document.getElementById('modalAuthor').innerText = member.name;
-            document.getElementById('modalContent').innerText = member.project;
-            document.getElementById('detailsModal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('detailsModal').classList.add('hidden');
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = msg;
-            toast.classList.remove('opacity-0', 'pointer-events-none');
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'pointer-events-none');
-            }, 3000);
-        }
-    </script>
+      }
+    });
+  </script>
 </body>
 </html>
