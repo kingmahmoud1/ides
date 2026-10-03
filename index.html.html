@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تصويت الفريق | اختيار أفضل فكرة</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Results -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Canvas Confetti for Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        accent: {
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card-hover {
+            transition: all 0.3s ease;
+        }
+        .glass-card-hover:hover {
+            transform: translateY(-4px);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.15);
+        }
+        .disabled-card {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border-color: rgba(239, 68, 68, 0.2) !important;
+            opacity: 0.65;
+            cursor: not-allowed !important;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <!-- Logo & Title -->
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                        <i class="fa-solid fa-trophy text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-xl sm:text-2xl tracking-tight text-white">تحدي أفضل فكرة</h1>
+                        <p class="text-xs text-slate-400">تصويت الأعضاء الـ 8 لاختيار الفكرة الرائدة</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/50">
+                    <button id="navVoteBtn" onclick="switchTab('vote')" class="px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 bg-brand-600 text-white shadow-md">
+                        <i class="fa-solid fa-check-to-slot"></i>
+                        <span>التصويت</span>
+                    </button>
+                    <button id="navResultsBtn" onclick="switchTab('results')" class="px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>النتائج واللوحة</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        
+        <!-- Status Bar / Progress Indicator -->
+        <div class="mb-8 glass-card rounded-2xl p-4 sm:p-6 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-brand-500 shrink-0 border border-slate-700">
+                    <i class="fa-solid fa-users text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block font-semibold">حالة التصويت الجماعي</span>
+                    <span id="voteProgressText" class="text-base font-bold text-white">جارِ التحميل...</span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full md:w-64 bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+                <div id="voteProgressBar" class="bg-gradient-to-r from-brand-500 to-accent-500 h-full w-0 transition-all duration-500"></div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                <button onclick="openIdeasModal()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-lg transition border border-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-pen-to-square text-brand-500"></i>
+                    <span>تعديل الأفكار</span>
+                </button>
+                <button onclick="resetSystemPrompt()" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-2 rounded-lg transition border border-red-500/20 flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>إعادة ضبط</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 1: VOTING SECTION -->
+        <section id="voteTab" class="space-y-8">
+            
+            <!-- Step 1: Identity Selection -->
+            <div id="step1Section" class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800">
+                <div class="text-center max-w-2xl mx-auto mb-8">
+                    <span class="bg-brand-500/10 text-brand-400 text-xs font-bold px-3 py-1 rounded-full border border-brand-500/20 mb-3 inline-block">الخطوة الأولى</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white">من أنت؟ حدد هويتك للبدء</h2>
+                    <p class="text-slate-400 text-sm mt-2">اختر اسمك من بين أعضاء الفريق الـ 8 لتتمكن من إبداء رأيك وتصويتك.</p>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="identityGrid">
+                    <!-- Dynamic rendering of 8 users -->
+                </div>
+            </div>
+
+            <!-- Step 2: Idea Selection (Hidden initially or filtered) -->
+            <div id="step2Section" class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 transition-all duration-300 opacity-50 pointer-events-none">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-slate-800 pb-6">
+                    <div>
+                        <span class="bg-accent-500/10 text-accent-400 text-xs font-bold px-3 py-1 rounded-full border border-accent-500/20 mb-2 inline-block">الخطوة الثانية</span>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-white">اختر أفضل فكرة بالنسبة لك</h2>
+                        <p class="text-slate-400 text-sm mt-1">تصفح أفكار زملائك واختر الفكرة الأكثر إبداعاً وقابلية للتطبيق.</p>
+                    </div>
+
+                    <!-- Current Active User Badge -->
+                    <div id="activeUserBadge" class="hidden items-center gap-3 bg-slate-800/80 px-4 py-2.5 rounded-2xl border border-slate-700">
+                        <div class="w-9 h-9 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm" id="activeUserAvatar">?</div>
+                        <div class="text-right">
+                            <span class="text-[10px] text-slate-400 block font-semibold">تُصوّت الآن بصفتك:</span>
+                            <span class="text-sm font-bold text-white" id="activeUserName">لم يتم التحديد</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ideas & Members Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="ideasGrid">
+                    <!-- Dynamic rendering of candidate cards -->
+                </div>
+
+                <!-- Submit Button Bar -->
+                <div class="mt-10 border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-2 text-slate-400 text-xs">
+                        <i class="fa-solid fa-shield-halved text-brand-500 text-base"></i>
+                        <span>التصويت نهائي ومؤمن، ولا يمكن تغييره بعد الضغط على تأكيد.</span>
+                    </div>
+
+                    <button id="submitVoteBtn" disabled onclick="confirmVoteModal()" class="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-base transition-all bg-slate-800 text-slate-500 cursor-not-allowed flex items-center justify-center gap-2 shadow-lg">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>تأكيد إرسال التصويت</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Voted Lock Card (If already voted) -->
+            <div id="alreadyVotedCard" class="hidden glass-card rounded-3xl p-8 border border-emerald-500/30 text-center max-w-xl mx-auto space-y-4">
+                <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto text-3xl border border-emerald-500/30">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white">لقد قمت بالتصويت بنجاح!</h3>
+                <p class="text-slate-300 text-sm leading-relaxed" id="votedDetailsText">
+                    تم تسجيل صوتك في النظام بشكل نهائي. يمكنك مشاهدة النتائج الحية ومتابعة تقدم الفريق من خلال لوحة النتائج.
+                </p>
+                <button onclick="switchTab('results')" class="mt-4 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition shadow-lg shadow-emerald-600/20 inline-flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>الانتقال للوحة النتائج الحية</span>
+                </button>
+            </div>
+
+        </section>
+
+        <!-- TAB 2: RESULTS DASHBOARD -->
+        <section id="resultsTab" class="hidden space-y-8">
+            
+            <!-- Top Winner Banner -->
+            <div id="winnerBanner" class="hidden glass-card rounded-3xl p-6 sm:p-8 border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-slate-900 to-brand-500/10 relative overflow-hidden">
+                <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl"></div>
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
+                    <div class="flex items-center gap-5 text-right">
+                        <div class="w-16 h-16 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-3xl shadow-xl shadow-amber-500/20 shrink-0 font-extrabold">
+                            <i class="fa-solid fa-crown"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-amber-400 tracking-wider uppercase block">الفكرة المتصدرة حتى الآن</span>
+                            <h3 id="winnerName" class="text-2xl sm:text-3xl font-extrabold text-white">--</h3>
+                            <p id="winnerVotes" class="text-xs text-slate-300 mt-1">حاصل على 0 أصوات</p>
+                        </div>
+                    </div>
+                    <button onclick="triggerConfetti()" class="px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-solid fa-sparkles"></i>
+                        <span>احتفال بالنتائج</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Charts & Details Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <!-- Main Chart Card -->
+                <div class="lg:col-span-2 glass-card rounded-3xl p-6 sm:p-8 border border-slate-800">
+                    <div class="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-brand-500"></i>
+                            <span>توزيع الأصوات والتصنيف</span>
+                        </h3>
+                        <span class="text-xs text-slate-400">تحديث مباشر تلقائي</span>
+                    </div>
+
+                    <div class="h-72 sm:h-80 w-full">
+                        <canvas id="votesChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Who Voted Tracker -->
+                <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800">
+                    <div class="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-accent-500"></i>
+                            <span>سجل تصويت الأعضاء</span>
+                        </h3>
+                        <span id="votedCountBadge" class="text-xs font-bold bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700">0 / 8</span>
+                    </div>
+
+                    <div class="space-y-3 max-h-[320px] overflow-y-auto pr-1" id="votedStatusList">
+                        <!-- Dynamic list of who voted -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboard Table -->
+            <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800">
+                <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-ranking-star text-amber-400"></i>
+                    <span>تفاصيل قائمة الأفكار والأصوات</span>
+                </h3>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-xs text-slate-400">
+                                <th class="pb-3 font-semibold">العضو / المبتكر</th>
+                                <th class="pb-3 font-semibold">عنوان الفكرة</th>
+                                <th class="pb-3 font-semibold">عدد الأصوات</th>
+                                <th class="pb-3 font-semibold">النسبة المئوية</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardBody" class="divide-y divide-slate-800/60 text-sm">
+                            <!-- Dynamic rendering of table rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Modal 1: Vote Confirmation -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        <div class="glass-card rounded-3xl max-w-md w-full p-6 border border-slate-700 space-y-5 transform transition-all shadow-2xl">
+            <div class="w-14 h-14 bg-brand-500/20 text-brand-400 rounded-2xl flex items-center justify-center text-2xl mx-auto border border-brand-500/30">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <div class="text-center space-y-2">
+                <h3 class="text-xl font-bold text-white">تأكيد التصويت النهائي</h3>
+                <p class="text-slate-300 text-sm">
+                    هل أنت أصلًا متأكد من إعطاء صوتك لـ <span id="modalTargetName" class="font-bold text-brand-400 underline">--</span>؟
+                </p>
+                <div class="p-3 bg-slate-800/80 rounded-xl text-xs text-slate-400 border border-slate-700/50 mt-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400 ml-1"></i>
+                    تنبيه: لا يمكن التراجع أو تعديل الاختيار إطلاقاً بعد التأكيد.
+                </div>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+                <button onclick="closeConfirmModal()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-sm transition border border-slate-700">
+                    إلغاء
+                </button>
+                <button onclick="submitFinalVote()" class="flex-1 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-sm transition shadow-lg shadow-brand-600/30">
+                    نعم، تأكيد الصوت
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Edit Ideas Modal -->
+    <div id="ideasModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        <div class="glass-card rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-slate-700 space-y-6 max-h-[90vh] flex flex-col shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                    <span>إدارة وتعديل تفاصيل أفكار الأعضاء</span>
+                </h3>
+                <button onclick="closeIdeasModal()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 pr-1 flex-1" id="editIdeasFormList">
+                <!-- Dynamic form inputs for editing descriptions -->
+            </div>
+
+            <div class="flex items-center gap-3 border-t border-slate-800 pt-4">
+                <button onclick="saveIdeasChanges()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-sm transition shadow-lg">
+                    حفظ وتحديث الأفكار
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500 mt-12 bg-slate-950/40">
+        <p>تطبيق التصويت الخاص بالفريق &copy; 2026 - نظام محمي ومنظم لاختيار الأفكار</p>
+    </footer>
+
+    <script>
+        // Default Team Members and Idea Descriptions
+        const DEFAULT_MEMBERS = [
+            { id: "salma", name: "سلمى", avatar: "👩‍💻", title: "منصة ذكية لإدارة مهام الفريق", desc: "نظام يعتمد على الذكاء الاصطناعي لتوزيع المهام تلقائياً بناءً على مهارات كل عضو وإنتاجيته." },
+            { id: "ahmed", name: "أحمد", avatar: "👨‍‍💻", title: "تطبيق التفاعل السريع والحلول", desc: "أداة لتسريع التواصل الداخلي لحل المشكلات الحرجة بنظام التنبيهات المباشرة والتصعيد." },
+            { id: "ibrahim", name: "إبراهيم", avatar: "👨‍🎨", title: "مكتبة المكونات الموحدة UI/UX", desc: "بناء مكتبة تصميم موحدة وشاملة تختصر 40% من وقت تطوير الواجهات وتضمن الهوية." },
+            { id: "mahmoud", name: "محمود", avatar: "👨‍💼", title: "محلل البيانات والتنبؤ بالنتائج", desc: "داشبورد تحليلي متقدم يعرض المؤشرات المالية والأداء برسم بياني دقيق في الوقت الفعلي." },
+            { id: "yassagamil", name: "yassagamil", avatar: "🚀", title: "نظام أتمتة اختبار الكود والجودة", desc: "سكربتات أتمتة ذكية تفحص جودة البرمجيات قبل النشر للحد من الأخطاء والـ Bugs بنسبة 90%." },
+            { id: "hala", name: "هلا", avatar: "👩‍🎨", title: "منصة المحتوى والتسويق التفاعلي", desc: "منصة مبتكرة لتوليد أفكار المحتوى الإبداعي والتفاعل مع العملاء عبر قنوات متعددة." },
+            { id: "sara", name: "سارة", avatar: "👩‍🔬", title: "أداة التوثيق التلقائي للمشاريع", desc: "مولد توثيق (Documentation) يترجم الكود والهيكلية إلى أدلة استخدام سهلة ومبسطة." },
+            { id: "george", name: "george", avatar: "👨‍🚀", title: "نظام التكامل وربط الخدمات API", desc: "معمارية برمجية فائقة السرعة لربط مختلف الخدمات السحابية والأنظمة الخارجية بسلاسة." }
+        ];
+
+        // State variables
+        let teamMembers = [];
+        let votesState = {}; // { memberId: voteCount }
+        let voterRecords = {}; // { memberId: votedForTargetId }
+        let currentSelectedUser = null;
+        let selectedCandidateId = null;
+        let votesChartInstance = null;
+
+        // Initialize Application
+        window.onload = function() {
+            loadDataFromStorage();
+            renderIdentityGrid();
+            renderIdeasGrid();
+            updateStatsAndCharts();
+        };
+
+        // Load or initialize localStorage
+        function loadDataFromStorage() {
+            // Load members or set defaults
+            const savedMembers = localStorage.getItem('team_voting_members');
+            if (savedMembers) {
+                teamMembers = JSON.parse(savedMembers);
+            } else {
+                teamMembers = JSON.parse(JSON.stringify(DEFAULT_MEMBERS));
+                localStorage.setItem('team_voting_members', JSON.stringify(teamMembers));
+            }
+
+            // Load votes count
+            const savedVotes = localStorage.getItem('team_voting_counts');
+            if (savedVotes) {
+                votesState = JSON.parse(savedVotes);
+            } else {
+                votesState = {};
+                teamMembers.forEach(m => votesState[m.id] = 0);
+                localStorage.setItem('team_voting_counts', JSON.stringify(votesState));
+            }
+
+            // Load voter records
+            const savedRecords = localStorage.getItem('team_voter_records');
+            if (savedRecords) {
+                voterRecords = JSON.parse(savedRecords);
+            } else {
+                voterRecords = {};
+                localStorage.setItem('team_voter_records', JSON.stringify(voterRecords));
+            }
+        }
+
+        // Save data to localStorage
+        function saveDataToStorage() {
+            localStorage.setItem('team_voting_members', JSON.stringify(teamMembers));
+            localStorage.setItem('team_voting_counts', JSON.stringify(votesState));
+            localStorage.setItem('team_voter_records', JSON.stringify(voterRecords));
+        }
+
+        // Render Identity Grid (Step 1)
+        function renderIdentityGrid() {
+            const container = document.getElementById('identityGrid');
+            container.innerHTML = '';
+
+            teamMembers.forEach(member => {
+                const hasVoted = voterRecords[member.id] !== undefined;
+                const isSelected = currentSelectedUser && currentSelectedUser.id === member.id;
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl border transition-all cursor-pointer text-center relative flex flex-col items-center justify-center gap-2 ${
+                    isSelected 
+                        ? 'bg-brand-600/20 border-brand-500 shadow-lg shadow-brand-500/10' 
+                        : 'bg-slate-800/50 border-slate-700/70 hover:bg-slate-800 hover:border-slate-600'
+                }`;
+
+                card.onclick = () => selectIdentity(member);
+
+                card.innerHTML = `
+                    <div class="w-12 h-12 rounded-full bg-slate-700/80 flex items-center justify-center text-2xl border border-slate-600">
+                        ${member.avatar}
+                    </div>
+                    <span class="font-bold text-white text-base">${member.name}</span>
+                    
+                    ${hasVoted ? `
+                        <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-check"></i> تم التصويت
+                        </span>
+                    ` : `
+                        <span class="text-[10px] text-slate-400">لم يصوت بعد</span>
+                    `}
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // Select User Identity
+        function selectIdentity(member) {
+            currentSelectedUser = member;
+            selectedCandidateId = null;
+
+            // Check if this user has already voted
+            if (voterRecords[member.id]) {
+                document.getElementById('step2Section').classList.add('hidden');
+                document.getElementById('alreadyVotedCard').classList.remove('hidden');
+                const targetName = teamMembers.find(m => m.id === voterRecords[member.id])?.name || '';
+                document.getElementById('votedDetailsText').innerHTML = `
+                    مرحباً <strong class="text-white">${member.name}</strong>! لقد قمت سابقاً بمنح صوتك لصالح فكرة <strong class="text-brand-400">${targetName}</strong>.<br>لا يُسمح بإعادة التصويت وفقاً لقوانين النظام.
+                `;
+            } else {
+                document.getElementById('alreadyVotedCard').classList.add('hidden');
+                document.getElementById('step2Section').classList.remove('hidden');
+                document.getElementById('step2Section').classList.remove('opacity-50', 'pointer-events-none');
+
+                // Update active user badge
+                document.getElementById('activeUserBadge').classList.remove('hidden');
+                document.getElementById('activeUserBadge').classList.add('flex');
+                document.getElementById('activeUserName').innerText = member.name;
+                document.getElementById('activeUserAvatar').innerText = member.avatar;
+            }
+
+            renderIdentityGrid();
+            renderIdeasGrid();
+            updateSubmitButtonState();
+        }
+
+        // Render Ideas Grid (Step 2)
+        function renderIdeasGrid() {
+            const container = document.getElementById('ideasGrid');
+            container.innerHTML = '';
+
+            teamMembers.forEach(member => {
+                const isSelf = currentSelectedUser && currentSelectedUser.id === member.id;
+                const isSelectedCandidate = selectedCandidateId === member.id;
+
+                const card = document.createElement('div');
+                card.className = `glass-card rounded-2xl p-5 border transition-all flex flex-col justify-between relative ${
+                    isSelf 
+                        ? 'disabled-card' 
+                        : isSelectedCandidate 
+                            ? 'border-brand-500 bg-brand-500/10 shadow-xl shadow-brand-500/10 ring-2 ring-brand-500/50' 
+                            : 'glass-card-hover border-slate-700/60 cursor-pointer'
+                }`;
+
+                if (!isSelf) {
+                    card.onclick = () => {
+                        if (!currentSelectedUser) {
+                            alert('رجاءً اختر هويتك أولاً في الخطوة الأولى!');
+                            return;
+                        }
+                        selectedCandidateId = member.id;
+                        renderIdeasGrid();
+                        updateSubmitButtonState();
+                    };
+                }
+
+                card.innerHTML = `
+                    <div>
+                        <!-- Header with Name & Self Indicator -->
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-2xl p-1.5 rounded-lg bg-slate-800 border border-slate-700">${member.avatar}</span>
+                                <div>
+                                    <h4 class="font-bold text-white text-base">${member.name}</h4>
+                                    <span class="text-[10px] text-slate-400 block">مبتكر الفكرة</span>
+                                </div>
+                            </div>
+
+                            ${isSelf ? `
+                                <span class="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded-md font-bold flex items-center gap-1">
+                                    <i class="fa-solid fa-ban"></i> نفسك (غير متاح)
+                                </span>
+                            ` : isSelectedCandidate ? `
+                                <span class="text-[10px] bg-brand-500 text-white px-2 py-1 rounded-md font-bold flex items-center gap-1 shadow-md">
+                                    <i class="fa-solid fa-check-circle"></i> تم الاختيار
+                                </span>
+                            ` : ''}
+                        </div>
+
+                        <!-- Idea Content -->
+                        <div class="space-y-2 mt-2">
+                            <h5 class="text-sm font-bold text-brand-300 leading-snug">${member.title}</h5>
+                            <p class="text-xs text-slate-300 leading-relaxed line-clamp-4">${member.desc}</p>
+                        </div>
+                    </div>
+
+                    <!-- Footer Action Note -->
+                    <div class="mt-5 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                        ${isSelf ? `
+                            <span class="text-red-400 font-semibold">ممنوع التصويت لنفسك</span>
+                        ` : `
+                            <span class="${isSelectedCandidate ? 'text-brand-400 font-bold' : 'text-slate-400'}">
+                                ${isSelectedCandidate ? 'اضغط تأكيد بالأسفل' : 'اضغط لاختيار هذه الفكرة'}
+                            </span>
+                        `}
+                        <i class="fa-solid ${isSelf ? 'fa-lock text-red-400' : isSelectedCandidate ? 'fa-circle-check text-brand-400' : 'fa-hand-pointer text-slate-500'}"></i>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // Enable or disable submit button
+        function updateSubmitButtonState() {
+            const btn = document.getElementById('submitVoteBtn');
+            if (currentSelectedUser && selectedCandidateId && voterRecords[currentSelectedUser.id] === undefined) {
+                btn.disabled = false;
+                btn.className = "w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-base transition-all bg-gradient-to-r from-brand-600 to-accent-600 hover:from-brand-500 hover:to-accent-500 text-white cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-brand-500/20 active:scale-95";
+            } else {
+                btn.disabled = true;
+                btn.className = "w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-base transition-all bg-slate-800 text-slate-500 cursor-not-allowed flex items-center justify-center gap-2 shadow-lg";
+            }
+        }
+
+        // Confirm Vote Modal
+        function confirmVoteModal() {
+            if (!currentSelectedUser || !selectedCandidateId) return;
+
+            const targetMember = teamMembers.find(m => m.id === selectedCandidateId);
+            document.getElementById('modalTargetName').innerText = `${targetMember.name} (${targetMember.title})`;
+            document.getElementById('confirmModal').classList.remove('hidden');
+            document.getElementById('confirmModal').classList.add('flex');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            document.getElementById('confirmModal').classList.remove('flex');
+        }
+
+        // Submit Final Vote
+        function submitFinalVote() {
+            closeConfirmModal();
+
+            if (!currentSelectedUser || !selectedCandidateId) return;
+
+            // Record vote
+            voterRecords[currentSelectedUser.id] = selectedCandidateId;
+            votesState[selectedCandidateId] = (votesState[selectedCandidateId] || 0) + 1;
+
+            saveDataToStorage();
+
+            // Fire victory confetti
+            triggerConfetti();
+
+            // Refresh UI
+            renderIdentityGrid();
+            renderIdeasGrid();
+            updateStatsAndCharts();
+
+            // Hide step 2, show voted card
+            document.getElementById('step2Section').classList.add('hidden');
+            document.getElementById('alreadyVotedCard').classList.remove('hidden');
+            const targetName = teamMembers.find(m => m.id === selectedCandidateId)?.name || '';
+            document.getElementById('votedDetailsText').innerHTML = `
+                شكرًا لك يا <strong class="text-white">${currentSelectedUser.name}</strong>! تم إعطاء صوتك بنجاح لصالح <strong class="text-brand-400">${targetName}</strong>.
+            `;
+
+            // Reset current selected state
+            currentSelectedUser = null;
+            selectedCandidateId = null;
+        }
+
+        // Update stats and chart
+        function updateStatsAndCharts() {
+            const totalVotedCount = Object.keys(voterRecords).length;
+            const percentage = Math.round((totalVotedCount / 8) * 100);
+
+            // Progress text
+            document.getElementById('voteProgressText').innerText = `تم تصويت ${totalVotedCount} من أصل 8 أعضاء (${percentage}%)`;
+            document.getElementById('voteProgressBar').style.width = `${percentage}%`;
+
+            // Voted list status tab 2
+            const statusList = document.getElementById('votedStatusList');
+            document.getElementById('votedCountBadge').innerText = `${totalVotedCount} / 8`;
+            statusList.innerHTML = '';
+
+            teamMembers.forEach(m => {
+                const isVoted = voterRecords[m.id] !== undefined;
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40 text-xs";
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span>${m.avatar}</span>
+                        <span class="font-bold text-slate-200">${m.name}</span>
+                    </div>
+                    ${isVoted ? `
+                        <span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-check text-[10px]"></i> قام بالتصويت
+                        </span>
+                    ` : `
+                        <span class="text-slate-500 bg-slate-800 px-2 py-0.5 rounded font-semibold">
+                            في الانتظار
+                        </span>
+                    `}
+                `;
+                statusList.appendChild(div);
+            });
+
+            // Winner calculation
+            let maxVotes = -1;
+            let winners = [];
+            teamMembers.forEach(m => {
+                const count = votesState[m.id] || 0;
+                if (count > maxVotes && count > 0) {
+                    maxVotes = count;
+                    winners = [m];
+                } else if (count === maxVotes && count > 0) {
+                    winners.push(m);
+                }
+            });
+
+            const winnerBanner = document.getElementById('winnerBanner');
+            if (winners.length > 0) {
+                winnerBanner.classList.remove('hidden');
+                document.getElementById('winnerName').innerText = winners.map(w => w.name).join(' & ');
+                document.getElementById('winnerVotes').innerText = `حاصل على ${maxVotes} أصوات من أصل ${totalVotedCount}`;
+            } else {
+                winnerBanner.classList.add('hidden');
+            }
+
+            // Leaderboard table
+            const leaderboardBody = document.getElementById('leaderboardBody');
+            leaderboardBody.innerHTML = '';
+
+            // Sort members by vote count
+            const sortedMembers = [...teamMembers].sort((a, b) => (votesState[b.id] || 0) - (votesState[a.id] || 0));
+
+            sortedMembers.forEach((m, idx) => {
+                const votes = votesState[m.id] || 0;
+                const percent = totalVotedCount > 0 ? Math.round((votes / totalVotedCount) * 100) : 0;
+
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-800/30 transition";
+                row.innerHTML = `
+                    <td class="py-3 font-bold text-white flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-slate-800 text-xs flex items-center justify-center text-slate-400 font-bold">${idx + 1}</span>
+                        <span>${m.avatar} ${m.name}</span>
+                    </td>
+                    <td class="py-3 text-slate-300 text-xs">${m.title}</td>
+                    <td class="py-3 font-bold text-brand-400">${votes} صوت</td>
+                    <td class="py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-16 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                                <div class="bg-brand-500 h-full" style="width: ${percent}%"></div>
+                            </div>
+                            <span class="text-xs text-slate-400 font-semibold">${percent}%</span>
+                        </div>
+                    </td>
+                `;
+                leaderboardBody.appendChild(row);
+            });
+
+            // Render Chart.js
+            renderChart();
+        }
+
+        // Render Chart.js Bar Chart
+        function renderChart() {
+            const ctx = document.getElementById('votesChart').getContext('2d');
+
+            const labels = teamMembers.map(m => m.name);
+            const data = teamMembers.map(m => votesState[m.id] || 0);
+
+            if (votesChartInstance) {
+                votesChartInstance.destroy();
+            }
+
+            votesChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'عدد الأصوات',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(139, 92, 246, 0.7)',
+                            'rgba(16, 185, 129, 0.7)',
+                            'rgba(245, 158, 11, 0.7)',
+                            'rgba(236, 72, 153, 0.7)',
+                            'rgba(14, 165, 233, 0.7)',
+                            'rgba(168, 85, 247, 0.7)',
+                            'rgba(20, 184, 166, 0.7)'
+                        ],
+                        borderColor: [
+                            '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
+                            '#ec4899', '#0ea5e9', '#a855f7', '#14b8a6'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` الأصوات: ${context.raw}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: '#94a3b8',
+                                font: { family: 'Cairo' }
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#f8fafc',
+                                font: { family: 'Cairo', weight: 'bold' }
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            const voteTab = document.getElementById('voteTab');
+            const resultsTab = document.getElementById('resultsTab');
+            const navVoteBtn = document.getElementById('navVoteBtn');
+            const navResultsBtn = document.getElementById('navResultsBtn');
+
+            if (tab === 'vote') {
+                voteTab.classList.remove('hidden');
+                resultsTab.classList.add('hidden');
+
+                navVoteBtn.className = "px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 bg-brand-600 text-white shadow-md";
+                navResultsBtn.className = "px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50";
+            } else {
+                voteTab.classList.add('hidden');
+                resultsTab.classList.remove('hidden');
+
+                navResultsBtn.className = "px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 bg-brand-600 text-white shadow-md";
+                navVoteBtn.className = "px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-700/50";
+
+                updateStatsAndCharts();
+            }
+        }
+
+        // Open/Close Ideas Editing Modal
+        function openIdeasModal() {
+            const container = document.getElementById('editIdeasFormList');
+            container.innerHTML = '';
+
+            teamMembers.forEach(m => {
+                const div = document.createElement('div');
+                div.className = "p-4 rounded-xl bg-slate-800/60 border border-slate-700 space-y-2";
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 font-bold text-white text-sm">
+                        <span>${m.avatar}</span>
+                        <span>فكرة العضو: ${m.name}</span>
+                    </div>
+                    <input type="text" id="edit_title_${m.id}" value="${m.title}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="عنوان الفكرة">
+                    <textarea id="edit_desc_${m.id}" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500" placeholder="وصف الفكرة">${m.desc}</textarea>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('ideasModal').classList.remove('hidden');
+            document.getElementById('ideasModal').classList.add('flex');
+        }
+
+        function closeIdeasModal() {
+            document.getElementById('ideasModal').classList.add('hidden');
+            document.getElementById('ideasModal').classList.remove('flex');
+        }
+
+        function saveIdeasChanges() {
+            teamMembers.forEach(m => {
+                const titleVal = document.getElementById(`edit_title_${m.id}`).value;
+                const descVal = document.getElementById(`edit_desc_${m.id}`).value;
+                if (titleVal) m.title = titleVal;
+                if (descVal) m.desc = descVal;
+            });
+
+            saveDataToStorage();
+            closeIdeasModal();
+            renderIdeasGrid();
+            updateStatsAndCharts();
+        }
+
+        // Reset system data
+        function resetSystemPrompt() {
+            if (confirm("هل أنت متأكد من إعادة ضبط وتصفير كل الأصوات والبيانات؟")) {
+                localStorage.removeItem('team_voting_counts');
+                localStorage.removeItem('team_voter_records');
+                localStorage.removeItem('team_voting_members');
+                
+                loadDataFromStorage();
+                currentSelectedUser = null;
+                selectedCandidateId = null;
+
+                document.getElementById('alreadyVotedCard').classList.add('hidden');
+                document.getElementById('step2Section').classList.add('hidden');
+
+                renderIdentityGrid();
+                renderIdeasGrid();
+                updateStatsAndCharts();
+            }
+        }
+
+        // Confetti Fireworks Effect
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
